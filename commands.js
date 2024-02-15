@@ -1,45 +1,54 @@
 import 'dotenv/config';
-import { getRPSChoices } from './game.js';
-import { capitalize, InstallGlobalCommands } from './utils.js';
+import { InstallGlobalCommands } from './utils.js';
+import { daysOfWeek, hourOptions } from './config.js';
 
-// Get the game choices from game.js
-function createCommandChoices() {
-  const choices = getRPSChoices();
-  const commandChoices = [];
-
-  for (let choice of choices) {
-    commandChoices.push({
-      name: capitalize(choice),
-      value: choice.toLowerCase(),
-    });
-  }
-
-  return commandChoices;
-}
-
-// Simple test command
-const TEST_COMMAND = {
-  name: 'test',
-  description: 'Basic command',
+// Set a recurring reminder
+const REMINDER_COMMAND = {
+  name: 'reminder',
+  description:
+    'command to set a recurring reminder message and post it to the channel',
   type: 1,
-};
-
-// Command containing options
-const CHALLENGE_COMMAND = {
-  name: 'challenge',
-  description: 'Challenge to a match of rock paper scissors',
   options: [
     {
       type: 3,
-      name: 'object',
-      description: 'Pick your object',
+      name: 'day',
+      description: 'Choose the day of the week on which to send a reminder:',
       required: true,
-      choices: createCommandChoices(),
+      choices: daysOfWeek,
+    },
+    {
+      type: 3,
+      name: 'hour',
+      description: 'Choose at what hour to send the reminder:',
+      required: true,
+      choices: hourOptions,
+    },
+    {
+      type: 4,
+      name: 'minute',
+      description:
+        'Type the minute as a number from 0 to 59 at which to receive the reminder:',
+      required: true,
+      min_value: 0,
+      max_value: 59,
+    },
+    {
+      type: 3,
+      name: 'message',
+      description: 'Type a message to be sent along with the reminder:',
+      required: true,
     },
   ],
+};
+
+// Remove the recurring reminder
+const STOP_REMINDER_COMMAND = {
+  name: 'stop-reminder',
+  description:
+    'command to stop the recurring message that is posted to the channel',
   type: 1,
 };
 
-const ALL_COMMANDS = [TEST_COMMAND, CHALLENGE_COMMAND];
+const ALL_COMMANDS = [REMINDER_COMMAND, STOP_REMINDER_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);

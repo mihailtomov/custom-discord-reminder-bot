@@ -1,14 +1,13 @@
 import 'dotenv/config';
 import express from 'express';
+import { CronJob } from 'cron';
+import { InteractionType, InteractionResponseType } from 'discord-interactions';
 import {
-  InteractionType,
-  InteractionResponseType,
-  InteractionResponseFlags,
-  MessageComponentTypes,
-  ButtonStyleTypes,
-} from 'discord-interactions';
-import { VerifyDiscordRequest, getRandomEmoji, DiscordRequest } from './utils.js';
-import { getShuffledOptions, getResult } from './game.js';
+  VerifyDiscordRequest,
+  DiscordRequest,
+  addLeadingZero,
+} from './utils.js';
+import { daysOfWeek } from './config.js';
 
 // Create an express app
 const app = express();
@@ -17,22 +16,15 @@ const PORT = process.env.PORT || 3000;
 // Parse request body and verifies incoming requests using discord-interactions package
 app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY) }));
 
-// Store for in-progress games. In production, you'd want to use a DB
-const activeGames = {};
-
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
  */
+
+let runningCronJob;
+
 app.post('/interactions', async function (req, res) {
   // Interaction type and data
-  const { type, id, data } = req.body;
-
-  /**
-   * Handle verification requests
-   */
-  if (type === InteractionType.PING) {
-    return res.send({ type: InteractionResponseType.PONG });
-  }
+  const { type, data, channel_id } = req.body;
 
   /**
    * Handle slash command requests
@@ -41,14 +33,50 @@ app.post('/interactions', async function (req, res) {
   if (type === InteractionType.APPLICATION_COMMAND) {
     const { name } = data;
 
-    // "test" command
-    if (name === 'test') {
-      // Send a message into the channel where command was triggered from
+    // Handle setting a reminder job
+    if (name === 'reminder') {
+      const [day, hour, minute, message] = req.body.data.options;
+
+      async function sendMessageToChannel() {
+        const endpoint = `channels/${channel_id}/messages`;
+
+        await DiscordRequest(endpoint, {
+          method: 'POST',
+          body: {
+            content: message.value,
+          },
+        });
+      }
+
+      runningCronJob = new CronJob(
+        `0 ${minute.value} ${hour.value} * * ${day.value}`, // cronTime
+        sendMessageToChannel,
+        null, // onComplete
+        true, // start
+        'Europe/Sofia' // timeZone, hardcoded for now
+      );
+      // job.start() is optional here because of the fourth parameter set to true.
+
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          // Fetches a random emoji to send from a helper function
-          content: 'hello world ' + getRandomEmoji(),
+          content: `Recurring reminder set! A recurring reminder will be sent to this channel every ${
+            daysOfWeek.find((o) => o.value === day.value).name
+          } at ${addLeadingZero(hour.value)}:${addLeadingZero(
+            minute.value
+          )} with the following message: "${message.value}"`,
+        },
+      });
+    }
+
+    // Handle removing a running reminder job
+    if (name === 'stop-reminder') {
+      runningCronJob.stop();
+
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: 'Recurring reminder successfully cancelled.',
         },
       });
     }
