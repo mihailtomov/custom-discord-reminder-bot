@@ -4,7 +4,7 @@ import { CronJob } from 'cron';
 import { InteractionType, InteractionResponseType } from 'discord-interactions';
 import {
   VerifyDiscordRequest,
-  DiscordRequest,
+  sendMessageToChannel,
   addLeadingZero,
 } from './utils.js';
 import { daysOfWeek } from './config.js';
@@ -20,7 +20,7 @@ app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY) }));
  * Interactions endpoint URL where Discord will send HTTP requests
  */
 
-let runningCronJob;
+const cronJobsDict = [];
 
 app.post('/interactions', async function (req, res) {
   // Interaction type and data
@@ -37,25 +37,17 @@ app.post('/interactions', async function (req, res) {
     if (name === 'reminder') {
       const [day, hour, minute, message] = req.body.data.options;
 
-      async function sendMessageToChannel() {
-        const endpoint = `channels/${channel_id}/messages`;
-
-        await DiscordRequest(endpoint, {
-          method: 'POST',
-          body: {
-            content: message.value,
-          },
-        });
-      }
-
-      runningCronJob = new CronJob(
+      const runningJob = new CronJob(
         `0 ${minute.value} ${hour.value} * * ${day.value}`, // cronTime
-        sendMessageToChannel,
+        () => sendMessageToChannel(channel_id, message.value),
         null, // onComplete
         true, // start
         'Europe/Sofia' // timeZone, hardcoded for now
       );
       // job.start() is optional here because of the fourth parameter set to true.
+
+      // Push the job rererence to an array linked to the current channel id
+      cronJobsDict.push({ channel_id, runningJob });
 
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -69,9 +61,11 @@ app.post('/interactions', async function (req, res) {
       });
     }
 
-    // Handle removing a running reminder job
+    // Handle removing a running reminder job on the current discord channel
     if (name === 'stop-reminder') {
-      runningCronJob.stop();
+      cronJobsDict
+        .find((dict) => dict.channel_id === channel_id)
+        .runningJob.stop();
 
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,

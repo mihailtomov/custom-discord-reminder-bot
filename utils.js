@@ -52,6 +52,17 @@ export async function InstallGlobalCommands(appId, commands) {
   }
 }
 
+export async function sendMessageToChannel(channelId, message) {
+  const endpoint = `channels/${channelId}/messages`;
+
+  await DiscordRequest(endpoint, {
+    method: 'POST',
+    body: {
+      content: `@here ${message}`,
+    },
+  });
+}
+
 export function addLeadingZero(str) {
   return str.toString().padStart(2, '0');
 }
