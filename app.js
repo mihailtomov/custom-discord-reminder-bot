@@ -23,7 +23,7 @@ app.use(express.json({ verify: VerifyDiscordRequest(process.env.PUBLIC_KEY) }));
 const cronJobsDict = [];
 
 app.get('/', (req, res) => {
-  res.statusCode(200).send('<h2>Server is running.</h2>');
+  res.status(200).send('<h2>Server is running.</h2>');
 });
 
 app.post('/interactions', async function (req, res) {
