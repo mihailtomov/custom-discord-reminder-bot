@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import fetch from 'node-fetch';
 import express from 'express';
 import { CronJob } from 'cron';
 import {
@@ -21,7 +22,8 @@ const PORT = process.env.PORT || 3000;
 const cronJobsDict = [];
 
 app.get('/', (req, res) => {
-  res.status(200).send('<h2>Server is running.</h2>');
+  console.log('Successful self-ping. Self-pinging every 14th minute.');
+  res.status(200).end();
 });
 
 app.post(
@@ -70,7 +72,7 @@ app.post(
       if (name === 'stop-reminder') {
         cronJobsDict
           .find((dict) => dict.channel_id === channel_id)
-          .runningJob.stop();
+          ?.runningJob.stop();
 
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -81,6 +83,15 @@ app.post(
       }
     }
   }
+);
+
+// start a self-pinging job to prevent the service from sleeping
+const selfPingJob = new CronJob(
+  '0 */14 * * * *', // send a request every 14th minute
+  () => fetch('https://custom-discord-reminder-bot.onrender.com/'),
+  null, // onComplete
+  true, // start
+  'Europe/Sofia' // timeZone, hardcoded for now
 );
 
 app.listen(PORT, () => {
