@@ -94,6 +94,19 @@ const selfPingJob = new CronJob(
   'Europe/Sofia' // timeZone, hardcoded for now
 );
 
+// add a discord server reminder job on startup
+const reminderJob = new CronJob(
+  '0 0 17 * * sun', // cronTime
+  () =>
+    sendMessageToChannel(
+      process.env.SECRET_CHANNEL_ID,
+      process.env.SECRET_MESSAGE
+    ),
+  null, // onComplete
+  true, // start
+  'Europe/Sofia' // timeZone, hardcoded for now
+);
+
 app.listen(PORT, () => {
   console.log('Listening on port', PORT);
 });
